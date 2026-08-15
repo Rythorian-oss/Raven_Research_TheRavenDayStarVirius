@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="RavenAntivirusResearch.csproj" Id="a1b2c3d4-e5f6-7890-abcd-ef1234567890">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+</Solution>
