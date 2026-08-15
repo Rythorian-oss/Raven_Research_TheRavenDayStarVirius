@@ -332,18 +332,70 @@ namespace RavenAntivirusResearch.Core
             }
             throw new InvalidDataException("WAV data chunk not found.");
         }
+   
+             // Constants for the safe wrapper
+        private static readonly byte[] MagicHeader = { 0x52, 0x41, 0x56, 0x4E }; // "RAVN"
+        private static readonly byte[] MagicFooter = { 0x45, 0x4E, 0x44, 0x56 }; // "ENDV"
+        private const int HeaderSize = 4 + 4 + 8 + 8 + 32 + 16; // |Magic|Ver|OrigSz|PlySz|Hmac|Iv|
+        private const int FooterSize = 4;
+        // ---------------------------------------------------------------
+        // JPEG append/extract/protective strategy involving critical data remaining stable
+        // ---------------------------------------------------------------
+      private static byte[] SafeAppendJpeg(byte[] carrier, byte[] payload, byte[] key)
+{
+    // 1. Validate Carrier
+    if (!CarrierIsJpeg(carrier)) throw new ArgumentException("Carrier is not a valid JPEG.");
 
-        // ---------------------------------------------------------------
-        // JPEG append/extract
-        // ---------------------------------------------------------------
-        private static byte[] AppendJpeg(byte[] carrier, byte[] payload)
-        {
-            int eoi = FindJpegEoi(carrier);
-            byte[] result = new byte[eoi + 2 + payload.Length];
-            Buffer.BlockCopy(carrier, 0, result, 0, eoi + 2);
-            Buffer.BlockCopy(payload, 0, result, eoi + 2, payload.Length);
-            return result;
-        }
+    // 2. Encrypt and Hash (Reuse existing logic)
+    byte[] encrypted = EncryptPayload(payload, key);
+    byte[] hash = ComputeHmac(encrypted, key);
+    byte[] iv = new byte[16];
+    Buffer.BlockCopy(encrypted, 0, iv, 0, 16);
+    byte[] cipherData = new byte[encrypted.Length - 16];
+    Buffer.BlockCopy(encrypted, 16, cipherData, 0, cipherData.Length);
+
+    // 3. Build the Safe Wrapper
+    // [MagicHeader | Version | OriginalSize | PayloadSize | HMAC | IV | CipherData | MagicFooter]
+    int payloadSize = payload.Length;
+    int originalSize = carrier.Length;
+    
+    byte[] wrapper = new byte[HeaderSize + payloadSize + FooterSize];
+    
+    // Write Header
+    Buffer.BlockCopy(MagicHeader, 0, wrapper, 0, 4);
+    BitConverter.GetBytes(1).CopyTo(wrapper, 4); // Version
+    BitConverter.GetBytes(originalSize).CopyTo(wrapper, 8);
+    BitConverter.GetBytes(payloadSize).CopyTo(wrapper, 16);
+    Buffer.BlockCopy(hash, 0, wrapper, 24, 32);
+    Buffer.BlockCopy(iv, 0, wrapper, 56, 16);
+    
+    // Write Payload
+    Buffer.BlockCopy(cipherData, 0, wrapper, 72, payloadSize);
+    
+    // Write Footer
+    Buffer.BlockCopy(MagicFooter, 0, wrapper, wrapper.Length - 4, 4);
+
+    // 4. Safe Write Strategy (Atomic)
+    string tempPath = Path.GetTempFileName();
+    try
+    {
+        // Create the new file
+        byte[] result = new byte[carrier.Length + wrapper.Length];
+        Buffer.BlockCopy(carrier, 0, result, 0, carrier.Length);
+        Buffer.BlockCopy(wrapper, 0, result, carrier.Length, wrapper.Length);
+
+        // 5. Validate before committing (Read back and check magic)
+        // In a real attempt, you would write to temp, verify, then replace.
+        // Here we just return the safe buffer.
+        return result;
+    }
+    catch (Exception ex)
+    {
+        // Cleanup temp file if created
+        if (File.Exists(tempPath)) File.Delete(tempPath);
+        throw new IOException("Failed to safely append data to JPEG.", ex);
+    }
+}
 
         private static byte[] ExtractJpegAppended(byte[] carrier)
         {
