@@ -838,26 +838,29 @@ namespace RavenInject
                 WriteUnicodeString(hProcess, pp + (is64Bit ? 0x70 : 0x40), commandLine, is64Bit);
         }
 
-        private void WriteUnicodeString(IntPtr hProcess, IntPtr usAddr, string value, bool is64Bit)
-        {
-            byte[] bytes = Encoding.Unicode.GetBytes(value + "\0");
-            IntPtr buf = VirtualAllocEx(hProcess, IntPtr.Zero, (IntPtr)bytes.Length,
-                MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-            if (buf == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+      private void WriteUnicodeString(IntPtr hProcess, IntPtr usAddr, string value, bool is64Bit)
+      {
+        byte[] bytes = Encoding.Unicode.GetBytes(value + "\0");
+        IntPtr buf = VirtualAllocEx(hProcess, IntPtr.Zero, (IntPtr)bytes.Length,
+        MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+       if (buf == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
 
-            if (!WriteProcessMemory(hProcess, buf, bytes, (IntPtr)bytes.Length, out _))
-                throw new Win32Exception(Marshal.GetLastWin32Error());
+       if (!WriteProcessMemory(hProcess, buf, bytes, (IntPtr)bytes.Length, out _))
+        throw new Win32Exception(Marshal.GetLastWin32Error());
 
-            int ptrSize = is64Bit ? 8 : 4;
-            byte[] header = new byte[8 + ptrSize];
-            BitConverter.GetBytes((ushort)(bytes.Length - 2)).CopyTo(header, 0);
-            BitConverter.GetBytes((ushort)bytes.Length).CopyTo(header, 2);
-            if (is64Bit) BitConverter.GetBytes(buf.ToInt64()).CopyTo(header, 8);
-            else BitConverter.GetBytes(unchecked((uint)buf.ToInt64())).CopyTo(header, 4);
+       int usSize = is64Bit ? 16 : 8;
+       byte[] header = new byte[usSize];
+       BitConverter.GetBytes((ushort)(bytes.Length - 2)).CopyTo(header, 0);  // Length
+       BitConverter.GetBytes((ushort)bytes.Length).CopyTo(header, 2);        // MaximumLength
+       // Buffer pointer: offset 8 on x64, offset 4 on x86
+       if (is64Bit)
+          BitConverter.GetBytes(buf.ToInt64()).CopyTo(header, 8);
+       else
+        BitConverter.GetBytes(unchecked((uint)buf.ToInt64())).CopyTo(header, 4);
 
-            if (!WriteProcessMemory(hProcess, usAddr, header, (IntPtr)header.Length, out _))
-                throw new Win32Exception(Marshal.GetLastWin32Error());
-        }
+       if (!WriteProcessMemory(hProcess, usAddr, header, (IntPtr)header.Length, out _))
+        throw new Win32Exception(Marshal.GetLastWin32Error());
+     }   
 
         #endregion
 
@@ -942,52 +945,56 @@ namespace RavenInject
         }
 
         private void InvokeTlsCallbacks(
-            IntPtr hProcess, IntPtr newImageBase, byte[] image, long oldImageBase)
+    IntPtr hProcess, IntPtr newImageBase, byte[] image, long oldImageBase)
+{
+    int e = BitConverter.ToInt32(image, 0x3C);
+    int opt = e + 24;
+    ushort magic = BitConverter.ToUInt16(image, opt);
+    bool is64 = magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
+    int dd = opt + (is64 ? 0x70 : 0x60);
+    long ddLimit = (long)opt + BitConverter.ToUInt16(image, e + 4 + 16);
+
+    if ((long)dd + IMAGE_DIRECTORY_ENTRY_TLS * 8 + 8 > ddLimit) return;
+
+    uint tlsRva = BitConverter.ToUInt32(image, dd + IMAGE_DIRECTORY_ENTRY_TLS * 8);
+    if (tlsRva == 0 || tlsRva + (is64 ? 0x28u : 0x18u) > image.Length) return;
+
+    int addrOff = is64 ? 0x18 : 0x0C;
+    // Use newImageBase as the base for RVA extraction.
+    long baseAddr = newImageBase.ToInt64();
+
+    long cbListVA = is64
+        ? BitConverter.ToInt64(image, (int)tlsRva + addrOff)
+        : BitConverter.ToInt32(image, (int)tlsRva + addrOff);
+    if (cbListVA == 0) return;
+
+    long cbListRva = cbListVA - baseAddr;  
+    if (cbListRva < 0 || cbListRva >= image.Length) return;
+
+    int step = is64 ? 8 : 4;
+    long p = cbListRva;
+    while (p + step <= image.Length)
+    {
+        long cbVA = is64
+            ? BitConverter.ToInt64(image, (int)p)
+            : BitConverter.ToInt32(image, (int)p);
+        if (cbVA == 0) break;
+
+        long cbRva = cbVA - baseAddr; 
+        if (cbRva < 0 || cbRva >= image.Length) break;
+
+        // cbVA is already a runtime address — use directly
+        IntPtr cbAddr = new IntPtr(cbVA);  
+        IntPtr hThread = CreateRemoteThread(
+            hProcess, IntPtr.Zero, IntPtr.Zero, cbAddr, newImageBase, 0, out _);
+        if (hThread != IntPtr.Zero)
         {
-            int e = BitConverter.ToInt32(image, 0x3C);
-            int opt = e + 24;
-            ushort magic = BitConverter.ToUInt16(image, opt);
-            bool is64 = magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
-            int dd = opt + (is64 ? 0x70 : 0x60);
-            long ddLimit = (long)opt + BitConverter.ToUInt16(image, e + 4 + 16);
-
-            if ((long)dd + IMAGE_DIRECTORY_ENTRY_TLS * 8 + 8 > ddLimit) return;
-
-            uint tlsRva = BitConverter.ToUInt32(image, dd + IMAGE_DIRECTORY_ENTRY_TLS * 8);
-            if (tlsRva == 0 || tlsRva + (is64 ? 0x28u : 0x18u) > image.Length) return;
-
-            int addrOff = is64 ? 0x18 : 0x0C;
-            long cbListVA = is64
-                ? BitConverter.ToInt64(image, (int)tlsRva + addrOff)
-                : BitConverter.ToInt32(image, (int)tlsRva + addrOff);
-            if (cbListVA == 0) return;
-
-            long cbListRva = cbListVA - oldImageBase;
-            if (cbListRva < 0 || cbListRva >= image.Length) return;
-
-            int step = is64 ? 8 : 4;
-            long p = cbListRva;
-            while (p + step <= image.Length)
-            {
-                long cbVA = is64
-                    ? BitConverter.ToInt64(image, (int)p)
-                    : BitConverter.ToInt32(image, (int)p);
-                if (cbVA == 0) break;
-
-                long cbRva = cbVA - oldImageBase;
-                if (cbRva < 0 || cbRva >= image.Length) break;
-
-                IntPtr cbAddr = new IntPtr(newImageBase.ToInt64() + cbRva);
-                IntPtr hThread = CreateRemoteThread(
-                    hProcess, IntPtr.Zero, IntPtr.Zero, cbAddr, newImageBase, 0, out _);
-                if (hThread != IntPtr.Zero)
-                {
-                    WaitForSingleObject(hThread, 5000);
-                    CloseHandle(hThread);
-                }
-                p += step;
-            }
+            WaitForSingleObject(hThread, 5000);
+            CloseHandle(hThread);
         }
+        p += step;
+    }
+}   
 
         private static void ApplyRelocations(byte[] image, PayloadInfo info, long delta)
         {
@@ -1039,45 +1046,36 @@ namespace RavenInject
             }
         }
 
-        private static void DisableCfgInImage(byte[] image, PayloadInfo info)
-        {
-            int dd = info.DataDirectoryOffset;
-            long ddLimit = (long)info.OptionalHeaderOffset
-                         + BitConverter.ToUInt16(image, info.OptionalHeaderOffset - 2);
-            if ((long)dd + (IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG + 1) * 8 > ddLimit) return;
+      private static void DisableCfgInImage(byte[] image, PayloadInfo info)
+{
+    int dd = info.DataDirectoryOffset;
+    long ddLimit = (long)info.OptionalHeaderOffset
+                 + BitConverter.ToUInt16(image, info.OptionalHeaderOffset - 4); // FIX: -4 not -2
+    if ((long)dd + (IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG + 1) * 8 > ddLimit) return;
 
-            uint cfgRva = BitConverter.ToUInt32(image, dd + IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG * 8);
-            uint cfgSize = BitConverter.ToUInt32(image, dd + IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG * 8 + 4);
-            if (cfgRva == 0 || (long)cfgRva + cfgSize > image.Length) return;
+    uint cfgRva = BitConverter.ToUInt32(image, dd + IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG * 8);
+    uint cfgSize = BitConverter.ToUInt32(image, dd + IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG * 8 + 4);
+    if (cfgRva == 0 || (long)cfgRva + cfgSize > image.Length) return;
+    return;
+}
 
-            int guardFlagsOff = info.Is64Bit ? 0x70 : 0x5C;
-            long field = (long)cfgRva + guardFlagsOff;
-            if (field + 4 > image.Length) return;
+private static long ReadSecurityCookieAddress(byte[] image, PayloadInfo info)
+{
+    int sizeOfOptHdr = BitConverter.ToUInt16(image, info.OptionalHeaderOffset - 4); // FIX: -4 not -2
+    long ddLimit = (long)info.OptionalHeaderOffset + sizeOfOptHdr;
 
-            uint flags = BitConverter.ToUInt32(image, (int)field);
-            flags &= ~0x00000100u;   // IMAGE_GUARD_CF_INSTRUMENTED
-            flags &= ~0x00000400u;   // IMAGE_GUARD_CF_FUNCTION_TABLE_PRESENT
-            flags &= ~0x00001000u;   // IMAGE_GUARD_CF_CHECK_FUNCTION_POINTER
-            BitConverter.GetBytes(flags).CopyTo(image, (int)field);
-        }
+    int dd = info.DataDirectoryOffset;
+    if ((long)dd + (IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG + 1) * 8 > ddLimit) return 0;
 
-        private static long ReadSecurityCookieAddress(byte[] image, PayloadInfo info)
-        {
-            int sizeOfOptHdr = BitConverter.ToUInt16(image, info.OptionalHeaderOffset - 2);
-            long ddLimit = (long)info.OptionalHeaderOffset + sizeOfOptHdr;
+    uint cfgRva = BitConverter.ToUInt32(image, dd + IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG * 8);
+    if (cfgRva == 0) return 0;
+    if ((long)cfgRva + (info.Is64Bit ? 0x60 : 0x40) > image.Length) return 0;
 
-            int dd = info.DataDirectoryOffset;
-            if ((long)dd + (IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG + 1) * 8 > ddLimit) return 0;
-
-            uint cfgRva = BitConverter.ToUInt32(image, dd + IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG * 8);
-            if (cfgRva == 0) return 0;
-            if ((long)cfgRva + (info.Is64Bit ? 0x60 : 0x40) > image.Length) return 0;
-
-            int fieldOff = (int)cfgRva + (info.Is64Bit ? 0x58 : 0x3C);
-            return info.Is64Bit
-                ? BitConverter.ToInt64(image, fieldOff)
-                : BitConverter.ToInt32(image, fieldOff);
-        }
+    int fieldOff = (int)cfgRva + (info.Is64Bit ? 0x58 : 0x3C);
+    return info.Is64Bit
+        ? BitConverter.ToInt64(image, fieldOff)
+        : BitConverter.ToInt32(image, fieldOff);
+}   
 
         #endregion
 
