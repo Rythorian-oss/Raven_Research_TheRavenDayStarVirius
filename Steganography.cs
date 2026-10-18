@@ -1,3 +1,4 @@
+// Created By: Justin Ross | Farmington, Maine. | USA
 #nullable enable
 using RavenAntivirusResearch.Utils;
 using System;
