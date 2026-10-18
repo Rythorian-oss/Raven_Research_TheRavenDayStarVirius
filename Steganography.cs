@@ -34,8 +34,7 @@ namespace RavenAntivirusResearch.Core
         private static readonly byte[] JpegMagicFooter = { 0x45, 0x4E, 0x44, 0x56 }; // "ENDV"
 
         // Wrapper layout:
-        // [4B Magic][4B Version][8B OrigSize][8B CipherLen][12B Nonce][16B Tag][CipherData][4B Footer]
-        private const int JpegHeaderSize = 4 + 4 + 8 + 8 + 12 + 16; // 52
+        private const int JpegHeaderSize = 4 + 4 + 8 + 8; // 24
         private const int JpegFooterSize = 4;
 
         // Crypto parameters
@@ -139,20 +138,15 @@ namespace RavenAntivirusResearch.Core
         // Key Derivation (HKDF)
         private static (byte[] encKey, ulong permSeed) DeriveKeys(byte[] masterKey)
         {
-            // Use first 16 bytes of master key as HKDF salt (deterministic per key)
             byte[] salt = new byte[HkdfSaltSize];
             Buffer.BlockCopy(masterKey, 0, salt, 0, Math.Min(masterKey.Length, HkdfSaltSize));
-
-            // Derive AES-256 key
-            byte[] encKey = HKDF.Expand(HashAlgorithmName.SHA256, masterKey, AesKeySize, HkdfInfoEncrypt);
-
-            // Derive 8-byte PRNG seed for permutation
-            byte[] seedBytes = HKDF.Expand(HashAlgorithmName.SHA256, masterKey, 8, HkdfInfoPermute);
+            
+            byte[] encKey = HKDF.DeriveKey(HashAlgorithmName.SHA256, masterKey, AesKeySize, salt, HkdfInfoEncrypt);
+            byte[] seedBytes = HKDF.DeriveKey(HashAlgorithmName.SHA256, masterKey, 8, salt, HkdfInfoPermute);
             ulong permSeed = BinaryPrimitives.ReadUInt64LittleEndian(seedBytes);
 
             return (encKey, permSeed);
-        }
-
+         }   
         // AES-256-GCM Encryption / Decryption
 
         /// <summary>
@@ -244,30 +238,6 @@ namespace RavenAntivirusResearch.Core
             z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
             z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
             return z ^ (z >> 31);
-        }
-
-        /// <summary>
-        /// Returns the position for index <paramref name="i"/> in the permutation
-        /// of [0, <paramref name="n"/>). Uses a deterministic keyed sequence.
-        /// For i < n, this yields a unique value in [0, n) when iterated in order.
-        /// 
-        /// Implementation: Fisher-Yates via streaming. I maintain a virtual
-        /// array where swap(i, j) is tracked implicitly. For the common case
-        /// where I only need the first K positions (K << n), I use:
-        ///   pos(i) derived from SplitMix64(seed + i) mapped to [0, n-i) + i
-        /// This gives a valid partial permutation.
-        /// </summary>
-        private static int GetPermutationPos(int i, int n, ulong seed)
-        {
-            // For position i in a Fisher-Yates shuffle, the random index is
-            // chosen from [i, n). I compute: r = SplitMix64(seed ^ (uint)i) % (n - i) + i
-            ulong mixed = NextSplitMix64(ref seed);
-            // Re-seed deterministically for each i (stateless per call)
-            ulong state = seed ^ (0x9E3779B97F4A7C15UL * (uint)i);
-            mixed = NextSplitMix64(ref state);
-
-            int range = n - i;
-            return (int)(mixed % (uint)range) + i;
         }
 
         // PRACTICAL SOLUTION: For N <= 10M, the int[] is 40MB max. That's
@@ -423,18 +393,23 @@ namespace RavenAntivirusResearch.Core
         private static (int dataOffset, int dataSize) ParseWav(byte[] wav)
         {
             if (wav.Length < 44) throw new InvalidDataException("WAV file too small.");
-            int off = 12;
-            while (off + 8 <= wav.Length)
-            {
-                string id = Encoding.ASCII.GetString(wav, off, 4);
-                uint size = BinaryPrimitives.ReadUInt32LittleEndian(wav.AsSpan(off + 4, 4));
-                if (id == "data")
-                    return (off + 8, (int)Math.Min(size, (uint)(wav.Length - off - 8)));
-                off += 8 + (int)size + ((int)size & 1); // chunks are word-aligned
-            }
-            throw new InvalidDataException("WAV data chunk not found.");
-        }
+              int off = 12;
+         while (off + 8 <= wav.Length)
+        {
+             
+        string id = Encoding.ASCII.GetString(wav, off, 4);
+        uint size = BinaryPrimitives.ReadUInt32LittleEndian(wav.AsSpan(off + 4, 4));
 
+        if (id == "data")
+            return (off + 8, (int)Math.Min(size, (uint)(wav.Length - off - 8)));
+
+        long nextOff = (long)off + 8 + (long)size + ((long)size & 1);
+        if (nextOff > wav.Length)
+            throw new InvalidDataException("WAV chunk extends beyond file boundary.");
+        off = (int)nextOff;
+    }
+    throw new InvalidDataException("WAV data chunk not found.");
+}   
         // JPEG Wrapper (appended after EOI)
         private static byte[] AppendJpegWrapper(byte[] carrier, byte[] encrypted)
         {
