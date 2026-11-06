@@ -99,12 +99,12 @@ Modifies the LSB of RGB channels in the pixel buffer. Uses a permutation to avoi
 Lossless (mostly), widely supported, high capacity.
 Detectable by statistical analysis (e.g., chi-square tests).
 WAV
-LSB in Audio Data
+# LSB in Audio Data
 Modifies the LSB of the raw audio bytes in the data chunk.
 Hard to hear (inaudible), high capacity.
 Audio quality degradation is possible if capacity is high.
 JPEG
-Append-after-EOI
+# Append-after-EOI
 Appends data immediately after the 0xFFD9 (End of Image) marker.
 Undetectable by parsers that stop at EOI.
 Data is lost if the image is re-encoded or compressed.
