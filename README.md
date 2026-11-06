@@ -30,6 +30,7 @@ The ParsePayload method reads the target payload's PE headers:
 Validates the PE\0\0 signature.
 Extracts ImageBase, SizeOfImage, SizeOfHeaders, and section details.
 Checks for .NET CLI headers to potentially patch execution flags.
+
 4. Unmapping the Original Image:
 NtUnmapViewOfSection(pi.hProcess, currentImageBase)
 If the target process’s ImageBase matches the payload’s ImageBase, the injector calls NtUnmapViewOfSection to remove the legitimate executable from the process memory.
@@ -44,23 +45,31 @@ PEB Update: WriteImageBaseToPEB updates the PEB’s ImageBaseAddress to point to
 
 6. Resumption
 ResumeThread(pi.hThread)
-The suspended thread is resumed. The process now executes the injected payload instead of its original code, often appearing legitimate to basic monitoring tools.
+The suspended thread is resumed.
+The process now executes the injected payload instead of its original code, often appearing legitimate to basic monitoring tools.
 
 # Feature	Detail:
 Supported Scenarios	32-bit → 32-bit, 64-bit → 64-bit, 64-bit host → 32-bit WOW64 target.
 Blocked Scenario	32-bit host → 64-bit target (architecture mismatch).
-Base Address Matching	Requires the payload’s ImageBase to match the target’s original ImageBase to unmap successfully. If they differ, the injection may fail or require complex relocation.
+Base Address Matching	Requires the payload’s ImageBase to match the target’s original ImageBase to unmap successfully. 
+If they differ, the injection may fail or require complex relocation.
 Anti-Debugging	No anti-debugging checks; legitimate debuggers can detect the suspension.
 
-# Modern EDR Detection:	High risk. NtUnmapViewOfSection, VirtualAllocEx on suspended processes, and PEB manipulation are well-known indicators of compromise (IOCs).
+# Modern EDR Detection:	(High risk.)
+NtUnmapViewOfSection, VirtualAllocEx on suspended processes, and PEB manipulation are well-known indicators of compromise (IOCs).
 
-Legitimate vs. Malicious Use:
+# Legitimate vs. Malicious Use:
+Debugging/Reverse Engineering: Analyzing a process without its original code interfering.	
+Malware Persistence: Injecting into trusted processes (e.g., svchost.exe) to hide.
 
-Debugging/Reverse Engineering: Analyzing a process without its original code interfering.	Malware Persistence: Injecting into trusted processes (e.g., svchost.exe) to hide.
+# Sandboxing/Virtualization: 
+Instrumenting processes for security research.	
+Bypassing Whitelisting: 
+Running unauthorized code within a whitelisted process.
 
-# Sandboxing/Virtualization: Instrumenting processes for security research.	Bypassing Whitelisting: Running unauthorized code within a whitelisted process.
-
-Security Research: Testing detection capabilities in a controlled lab.	Privilege Escalation: Injecting into high-privilege processes to gain access.
+# Security Research: 
+Testing detection capabilities in a controlled lab.	
+Privilege Escalation: Injecting into high-privilege processes to gain access.
 
 # Detection & Mitigation:
 Modern security solutions detect this technique by:
