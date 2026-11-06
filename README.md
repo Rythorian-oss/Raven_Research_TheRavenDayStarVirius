@@ -1,4 +1,4 @@
-# Raven_Research_TheRavenDayStarVirius
+# Raven Research: The Raven Day Star Virus:
 
 This code is a process hollowing (RunPE) injector written in C# for Windows. It demonstrates advanced Windows API manipulation techniques to inject a payload into a target process by replacing its original image with a new one. While the comments emphasize educational and legitimate use cases (debugging, sandboxing, testing), the core functionality is identical to techniques exploited by malware for persistence, privilege escalation, and evasion.
 
