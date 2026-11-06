@@ -1,8 +1,3 @@
-// FIX (error CS0111): Dispose(bool) was declared in BOTH Form1.cs and here.
-// The Designer file must NOT override Dispose — that belongs exclusively in
-// Form1.cs so the partial class has exactly one Dispose override.
-// FIX (namespace): RavenAntivirusResearch (not RavenAntivirusResearch.UI).
-// FIX (txtLog type): RichTextBox — required for SelectionColor in AppendLog.
 namespace RavenAntivirusResearch
 {
     partial class Form1
@@ -37,32 +32,32 @@ namespace RavenAntivirusResearch
             ((System.ComponentModel.ISupportInitialize)(this.nudTimeout)).BeginInit();
             this.SuspendLayout();
 
-            // ---- txtTargetPath ----
+            // txtTargetPath 
             this.txtTargetPath.Location = new System.Drawing.Point(12, 12);
             this.txtTargetPath.Size = new System.Drawing.Size(490, 23);
             this.txtTargetPath.Text = @"C:\Windows\System32\notepad.exe";
             this.txtTargetPath.TabIndex = 0;
 
-            // ---- btnBrowseTarget ----
+            //  btnBrowseTarget 
             this.btnBrowseTarget.Location = new System.Drawing.Point(508, 10);
             this.btnBrowseTarget.Size = new System.Drawing.Size(75, 25);
             this.btnBrowseTarget.Text = "Browse";
             this.btnBrowseTarget.TabIndex = 1;
             this.btnBrowseTarget.Click += new System.EventHandler(this.btnBrowseTarget_Click);
 
-            // ---- txtPayloadPath ----
+            // txtPayloadPath 
             this.txtPayloadPath.Location = new System.Drawing.Point(12, 41);
             this.txtPayloadPath.Size = new System.Drawing.Size(490, 23);
             this.txtPayloadPath.TabIndex = 2;
 
-            // ---- btnBrowsePayload ----
+            // btnBrowsePayload 
             this.btnBrowsePayload.Location = new System.Drawing.Point(508, 39);
             this.btnBrowsePayload.Size = new System.Drawing.Size(75, 25);
             this.btnBrowsePayload.Text = "Browse";
             this.btnBrowsePayload.TabIndex = 3;
             this.btnBrowsePayload.Click += new System.EventHandler(this.btnBrowsePayload_Click);
 
-            // ---- nudTimeout ----
+            // nudTimeout 
             this.nudTimeout.Location = new System.Drawing.Point(12, 72);
             this.nudTimeout.Size = new System.Drawing.Size(90, 23);
             this.nudTimeout.Minimum = new decimal(new int[] { 1000, 0, 0, 0 });
@@ -71,14 +66,14 @@ namespace RavenAntivirusResearch
             this.nudTimeout.Increment = new decimal(new int[] { 1000, 0, 0, 0 });
             this.nudTimeout.TabIndex = 4;
 
-            // ---- btnRunSandbox ----
+            // btnRunSandbox 
             this.btnRunSandbox.Location = new System.Drawing.Point(108, 70);
             this.btnRunSandbox.Size = new System.Drawing.Size(105, 25);
             this.btnRunSandbox.Text = "Run Sandbox";
             this.btnRunSandbox.TabIndex = 5;
             this.btnRunSandbox.Click += new System.EventHandler(this.btnRunSandbox_Click);
 
-            // ---- btnStartEtw ----
+            // btnStartEtw 
             this.btnStartEtw.Location = new System.Drawing.Point(219, 70);
             this.btnStartEtw.Size = new System.Drawing.Size(95, 25);
             this.btnStartEtw.Text = "Start ETW";
@@ -86,7 +81,7 @@ namespace RavenAntivirusResearch
             this.btnStartEtw.TabIndex = 6;
             this.btnStartEtw.Click += new System.EventHandler(this.btnStartEtw_Click);
 
-            // ---- btnStopEtw ----
+            // btnStopEtw 
             this.btnStopEtw.Location = new System.Drawing.Point(320, 70);
             this.btnStopEtw.Size = new System.Drawing.Size(95, 25);
             this.btnStopEtw.Text = "Stop ETW";
@@ -94,12 +89,12 @@ namespace RavenAntivirusResearch
             this.btnStopEtw.TabIndex = 7;
             this.btnStopEtw.Click += new System.EventHandler(this.btnStopEtw_Click);
 
-            // ---- lblStatus ----
+            // lblStatus 
             this.lblStatus.Location = new System.Drawing.Point(12, 102);
             this.lblStatus.Size = new System.Drawing.Size(450, 18);
             this.lblStatus.Text = "Ready.";
 
-            // ---- txtLog ----
+            // txtLog 
             this.txtLog.Location = new System.Drawing.Point(12, 123);
             this.txtLog.Size = new System.Drawing.Size(590, 300);
             this.txtLog.Multiline = true;
@@ -108,7 +103,7 @@ namespace RavenAntivirusResearch
             this.txtLog.Font = new System.Drawing.Font("Consolas", 8.5f);
             this.txtLog.TabIndex = 8;
 
-            // ---- Form1 ----
+            // Form1 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(614, 435);
