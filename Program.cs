@@ -8,15 +8,11 @@ namespace RavenAntivirusResearch
 {
     static class Program
     {
-        // FIX: Logger promoted to static field so the exception handlers can reach it.
         private static ILogger? _logger;
 
         [STAThread]
         static void Main()
         {
-            // AssemblyResolve fallback: some native/nuget combos cause System.Runtime.CompilerServices.Unsafe
-            // binding failures at runtime. Intercept unresolved loads and force-load the local copy from the
-            // application base directory so TraceEvent can find a compatible implementation.
             AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
             {
                 try
@@ -39,8 +35,8 @@ namespace RavenAntivirusResearch
                 catch { }
                 return null;
             };
-            // FIX: Initialize logger before registering exception handlers so all
-            //      unhandled exceptions are captured from the very start.
+            // Initialize logger before registering exception handlers so all
+            // unhandled exceptions are captured from the very start.
             _logger = new Logger("RavenAntivirusResearch.log");
 
             Application.ThreadException += OnThreadException;
@@ -55,7 +51,7 @@ namespace RavenAntivirusResearch
             }
             finally
             {
-                // FIX: Ensure logger is fully flushed and file handle released on exit.
+                // Ensure logger is fully flushed and file handle released on exit.
                 (_logger as IDisposable)?.Dispose();
             }
         }
@@ -70,7 +66,7 @@ namespace RavenAntivirusResearch
 
         private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            // FIX: e.ExceptionObject may not be an Exception (handle both cases).
+            // e.ExceptionObject may not be an Exception (handle both cases).
             string message = e.ExceptionObject?.ToString() ?? "Unknown fatal error";
             _logger?.LogError($"Fatal unhandled exception: {message}",
                 e.ExceptionObject as Exception);
