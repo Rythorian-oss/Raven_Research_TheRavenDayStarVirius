@@ -41,10 +41,7 @@ namespace RavenAntivirusResearch
             UpdateButtonStates(sandboxRunning: false, etwRunning: false);
         }
 
-        // ----------------------------------------------------------------
         // Sandbox
-        // ----------------------------------------------------------------
-
         private async void btnRunSandbox_Click(object sender, EventArgs e)
         {
             if (_isRunning)
@@ -90,7 +87,7 @@ namespace RavenAntivirusResearch
 
                 if (result.Success)
                 {
-                    // FIX: Store the job handle so Stop can dispose it (kills the process).
+                    // Store the job handle so Stop can dispose it (kills the process).
                     _activeJobHandle?.Dispose();
                     _activeJobHandle = result.JobHandle;
                     _activePid = result.ProcessId;
@@ -100,7 +97,7 @@ namespace RavenAntivirusResearch
                     _logger.LogInfo(msg);
                     lblStatus.Text = $"Running — PID {result.ProcessId}";
 
-                    // FIX: Enable ETW button now that we have a live PID.
+                    // Enable ETW button now that we have a live PID.
                     UpdateButtonStates(sandboxRunning: true, etwRunning: false);
                 }
                 else
@@ -133,7 +130,7 @@ namespace RavenAntivirusResearch
                 _etwMonitor = null;
             }
 
-            // FIX: Dispose the job handle — KILL_ON_JOB_CLOSE terminates the process.
+            // Dispose the job handle — KILL_ON_JOB_CLOSE terminates the process.
             _activeJobHandle?.Dispose();
             _activeJobHandle = null;
             _activePid = 0;
@@ -146,12 +143,7 @@ namespace RavenAntivirusResearch
             UpdateButtonStates(sandboxRunning: false, etwRunning: false);
         }
 
-        // ----------------------------------------------------------------
         // ETW
-        // ----------------------------------------------------------------
-
-        // FIX: Replaced missing btnStartEtw_Click / btnStopEtw_Click handlers.
-
         private void btnStartEtw_Click(object sender, EventArgs e)
         {
             // Respect App.config setting to enable/disable ETW monitoring globally.
@@ -161,7 +153,7 @@ namespace RavenAntivirusResearch
                 AppendLog("ETW monitoring is disabled by configuration.", Color.Gray);
                 return;
             }
-            // FIX: Guard — require an active sandbox session before starting ETW.
+            // Guard — require an active sandbox session before starting ETW.
             if (!_isRunning || _activePid == 0)
             {
                 MessageBox.Show("Initialize a sandbox session first.",
@@ -205,10 +197,7 @@ namespace RavenAntivirusResearch
             UpdateButtonStates(sandboxRunning: _isRunning, etwRunning: false);
         }
 
-        // ----------------------------------------------------------------
         // Browse buttons
-        // ----------------------------------------------------------------
-
         private void btnBrowseTarget_Click(object sender, EventArgs e)
         {
             using var dlg = new OpenFileDialog
@@ -232,10 +221,7 @@ namespace RavenAntivirusResearch
                 txtPayloadPath.Text = dlg.FileName;
         }
 
-        // ----------------------------------------------------------------
         // UI helpers
-        // ----------------------------------------------------------------
-
         private void UpdateButtonStates(bool sandboxRunning, bool etwRunning)
         {
             // Run Sandbox enabled only when no sandbox is active.
@@ -271,10 +257,7 @@ namespace RavenAntivirusResearch
             txtLog.ScrollToCaret();
         }
 
-        // ----------------------------------------------------------------
         // Dispose
-        // ----------------------------------------------------------------
-
         protected override void Dispose(bool disposing)
         {
             if (!_disposed)
