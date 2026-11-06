@@ -74,18 +74,24 @@ Privilege Escalation: Injecting into high-privilege processes to gain access.
 # Detection & Mitigation:
 Modern security solutions detect this technique by:
 
-Monitoring NtUnmapViewOfSection: This call is rare in legitimate software and highly suspicious in a security context.
+# Monitoring NtUnmapViewOfSection: 
+This call is rare in legitimate software and highly suspicious in a security context.
 
-Process Memory Integrity: Scanning for mismatches between the PEB’s ImageBase and the actual loaded modules.
+# Process Memory Integrity: 
+Scanning for mismatches between the PEB’s ImageBase and the actual loaded modules.
 
-Behavioral Analysis: Detecting processes created in CREATE_SUSPENDED state followed by memory manipulation and resumption.
+# Behavioral Analysis: 
+Detecting processes created in CREATE_SUSPENDED state followed by memory manipulation and resumption.
 
-Code Flow Validation: Ensuring the code at the ImageBase matches the expected hash/signature of the legitimate executable.
+# Code Flow Validation: 
+Ensuring the code at the ImageBase matches the expected hash/signature of the legitimate executable.
 
-Conclusion:
-This code is a sophisticated but dangerous tool. While it demonstrates deep knowledge of Windows internals, its primary utility is for offensive security operations. If you are researching this for defensive purposes:
+# Conclusion:
+This code is a sophisticated but dangerous tool. 
+While it demonstrates deep knowledge of Windows internals, its primary utility is for offensive security operations. 
+If you are researching this for defensive purposes:
 
-Do not run it on any system you do not fully control.
+# Do not run it on any system you do not fully control.
 Use it in a VM with network isolation.
 Focus on detection strategies rather than implementation.
 
@@ -95,12 +101,17 @@ The Steganography class doesn't just hide data; it wraps it in a cryptographic e
 
 # The Data Flow:
 
-Input: Plain payload + Key.
+# Input: 
+Plain payload + Key.
 Encryption: AES-CBC with a random IV.
-Integrity: HMAC-SHA256 over the ciphertext.
+
+# Integrity: HMAC-SHA256 over the ciphertext.
 Packaging: [4-byte Length] + [32-byte HMAC] + [Ciphertext].
-Embedding: The package is hidden using the carrier-specific method (LSB or Appending).
-This ensures that even if an attacker extracts the hidden data, they cannot verify its integrity or decrypt it without the key. If the data is tampered with (even by 1 bit), the HMAC check fails.
+
+# Embedding: 
+The package is hidden using the carrier-specific method (LSB or Appending).
+This ensures that even if an attacker extracts the hidden data, they cannot verify its integrity or decrypt it without the key. 
+If the data is tampered with (even by 1 bit), the HMAC check fails.
 
 2. Carrier-Specific Techniques
 PNG
@@ -109,7 +120,7 @@ Modifies the LSB of RGB channels in the pixel buffer. Uses a permutation to avoi
 Lossless (mostly), widely supported, high capacity.
 Detectable by statistical analysis (e.g., chi-square tests).
 WAV
-# LSB in Audio Data
+# LSB in Audio Data:
 Modifies the LSB of the raw audio bytes in the data chunk.
 Hard to hear (inaudible), high capacity.
 Audio quality degradation is possible if capacity is high.
@@ -122,64 +133,98 @@ Data is lost if the image is re-encoded or compressed.
 A. Deterministic Permutation (Anti-Stego)
 Standard LSB steganography is vulnerable because it embeds sequentially. This makes the statistical distribution of the image "noisy" in a predictable way.
 
-How it works: BuildPermutation uses the Key to seed a Random number generator, which shuffles the indices of the bits/bytes to be modified.
-Effect: The hidden data is scattered randomly across the carrier. This makes statistical detection (like chi-square analysis) significantly harder because the "noise" is uniform, not clustered.
+# How it works: 
+BuildPermutation uses the Key to seed a Random number generator, which shuffles the indices of the bits/bytes to be modified.
+# Effect: 
+The hidden data is scattered randomly across the carrier. 
+This makes statistical detection (like chi-square analysis) significantly harder because the "noise" is uniform, not clustered.
 Reproducibility: Since the seed is derived from the key and the file size, the extraction process uses the exact same shuffled order to read the bits back.
+
 B. Cryptographic Integrity (HMAC)
 The code uses HMAC-SHA256 to verify the data hasn't been altered.
 
-Implementation: ComputeHmac generates a hash of the encrypted payload.
-Verification: VerifyHmac uses FixedTimeEquals to prevent timing attacks. This is a critical detail: if it used == for byte arrays, an attacker could time the comparison to guess the key.
+# Implementation: 
+ComputeHmac generates a hash of the encrypted payload.
+# Verification: 
+VerifyHmac uses FixedTimeEquals to prevent timing attacks. 
+This is a critical detail: if it used == for byte arrays, an attacker could time the comparison to guess the key.
+
 C. AES-CBC Encryption
-Algorithm: Aes.Create() with a user-provided key.
-IV Handling: A random IV is generated for each encryption and prepended to the ciphertext. This ensures that encrypting the same payload twice yields different results (semantic security).
+# Algorithm: 
+Aes.Create() with a user-provided key.
+
+# IV Handling: 
+A random IV is generated for each encryption and prepended to the ciphertext. 
+This ensures that encrypting the same payload twice yields different results (semantic security).
+
 4. Code Walkthrough
 Step 1: Embedding (EmbedData)
 csharp
 
-Copy
+# Copy:
 byte[] encrypted = EncryptPayload(payload, key); // AES-CBC
 byte[] hash = ComputeHmac(encrypted, key);       // HMAC-SHA256
 byte[] dataToHide = PackHiddenData(encrypted, hash); // [Len][HMAC][Cipher]
 
-// Carrier selection
+# Carrier selection:
 if (CarrierIsPng(carrier)) return EmbedPngLsb(carrier, dataToHide, key);
-// ... WAV or JPEG logic
-Validation: Checks file signatures (PNG, RIFF, FFD8) to ensure the carrier is valid.
-Capacity Check: Ensures the payload isn't larger than the carrier's capacity (MaxEmbeddingBits limit).
+WAV or JPEG logic
+# Validation: 
+Checks file signatures (PNG, RIFF, FFD8) to ensure the carrier is valid.
+# Capacity Check: 
+Ensures the payload isn't larger than the carrier's capacity (MaxEmbeddingBits limit).
 Step 2: PNG LSB Implementation
 The code uses System.Drawing.Bitmap to lock the pixel buffer.
 
-Pixel Format: Format32bppArgb (4 bytes per pixel: B, G, R, A).
-Embedding Logic:
+#Pixel Format: 
+Format32bppArgb (4 bytes per pixel: B, G, R, A).
+# Embedding Logic:
 Iterates through the permutation sequence.
 Calculates the byte offset: row * stride + col * 4 + channel.
-Bitwise Operation: buffer[byteOff] = (byte)((buffer[byteOff] & 0xFE) | bitVal);
+# Bitwise Operation: 
+buffer[byteOff] = (byte)((buffer[byteOff] & 0xFE) | bitVal);
 & 0xFE: Clears the LSB.
 | bitVal: Sets the LSB to the data bit.
-Permutation: The BuildPermutation method ensures the bits are read/written in a scrambled order based on the key.
+# Permutation: 
+The BuildPermutation method ensures the bits are read/written in a scrambled order based on the key.
 Step 3: WAV Parsing
-Chunk Scanning: The ParseWav method scans the RIFF header for the data chunk.
-Offset Calculation: It finds the exact byte offset of the audio data to avoid modifying the header (which could break the file).
-Step 4: JPEG Append
-EOI Search: Finds the 0xFFD9 marker (End of Image).
-Append: Creates a new buffer, copies the original up to EOI, and appends the payload.
-Risk: This is not robust. If the image is saved again with a tool that re-compresses or re-encodes (e.g., Photoshop, browser resizing), the appended data is lost.
-Detection & Mitigation Strategies
-If you are researching this for defensive purposes (e.g., building a detector), here is what to look for:
 
+# Chunk Scanning: 
+The ParseWav method scans the RIFF header for the data chunk.
+# Offset Calculation: 
+It finds the exact byte offset of the audio data to avoid modifying the header (which could break the file).
+Step 4: JPEG Append
+
+# EOI Search: 
+Finds the 0xFFD9 marker (End of Image).
+
+# Append: 
+Creates a new buffer, copies the original up to EOI, and appends the payload.
+# Risk: 
+This is not robust. If the image is saved again with a tool that re-compresses or re-encodes (e.g., Photoshop, browser resizing), the appended data is lost.
+
+# Detection & Mitigation Strategies:
+If you are researching this for defensive purposes (e.g., building a detector), here is what to look for:
 PNG
-Chi-Square Test: Checks if the LSB distribution is uniform (it shouldn't be if stego is used).
-RS Analysis: Detects changes in the "reliability" of pixel groups.
+
+# Chi-Square Test: 
+Checks if the LSB distribution is uniform (it shouldn't be if stego is used).
+# RS Analysis: Detects changes in the "reliability" of pixel groups.
 WAV
-Spectral Analysis: Look for unnatural patterns in the frequency domain or high-frequency noise.
+
+# Spectral Analysis: 
+Look for unnatural patterns in the frequency domain or high-frequency noise.
 JPEG
-File Size Check: If a file is larger than expected for its quality, or if it contains data after 0xFFD9.
+
+# File Size Check: If a file is larger than expected for its quality, or if it contains data after 0xFFD9.
 Trailing Data Scanner: Scan all files for non-standard bytes after known EOF markers.
 Encryption
-HMAC Presence: The [4-byte Len][32-byte HMAC][Cipher] structure is unusual in legitimate media. Detecting this specific header pattern is a strong indicator.
-Permutation
-Statistical Uniformity: If the LSB noise is perfectly uniform (due to the permutation), it might actually be more suspicious than natural noise.
+
+# HMAC Presence: 
+The [4-byte Len][32-byte HMAC][Cipher] structure is unusual in legitimate media. Detecting this specific header pattern is a strong indicator.
+# Permutation:
+Statistical Uniformity: 
+If the LSB noise is perfectly uniform (due to the permutation), it might actually be more suspicious than natural noise.
 Code Quality & Security Analysis
 Encryption
 ⭐⭐⭐⭐
