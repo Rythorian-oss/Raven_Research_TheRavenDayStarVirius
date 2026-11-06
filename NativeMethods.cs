@@ -13,56 +13,41 @@ namespace RavenAntivirusResearch.Native
     /// </summary>
     internal static class NativeMethods
     {
-        // ----------------------------------------------------------------
         // Process creation flags
-        // ----------------------------------------------------------------
         public const uint CREATE_SUSPENDED = 0x00000004;
         public const uint CREATE_NEW_CONSOLE = 0x00000010;
         public const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
 
-        // ----------------------------------------------------------------
         // Token access rights
-        // ----------------------------------------------------------------
         public const uint TOKEN_DUPLICATE = 0x0002;
         public const uint TOKEN_QUERY = 0x0008;
         public const uint TOKEN_ADJUST_DEFAULT = 0x0080;
         public const uint TOKEN_ASSIGN_PRIMARY = 0x0001;
         public const uint TOKEN_ADJUST_GROUPS = 0x0100;
 
-        // ----------------------------------------------------------------
         // Job object limit flags
-        // ----------------------------------------------------------------
         public const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
         public const uint JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION = 0x0400;
         public const uint JOB_OBJECT_LIMIT_PROCESS_MEMORY = 0x0100;
         public const uint JOB_OBJECT_LIMIT_JOB_MEMORY = 0x0200;
         public const uint JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x0008;
 
-        // ----------------------------------------------------------------
         // PROC_THREAD_ATTRIBUTE constants
-        // ----------------------------------------------------------------
         public const uint PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x00020007;
         public const ulong PROCESS_CREATION_MITIGATION_POLICY_DEP_ENABLE = 0x01;
         public const ulong PROCESS_CREATION_MITIGATION_POLICY_SEHOP_ENABLE = 0x04;
         public const ulong PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES = 0x100;
 
-        // ----------------------------------------------------------------
         // GetLastError well-known codes
-        // ----------------------------------------------------------------
         public const int ERROR_INSUFFICIENT_BUFFER = 122;
 
-        // ----------------------------------------------------------------
         // Enums
-        // ----------------------------------------------------------------
         public enum JobObjectInfoType
         {
             ExtendedLimitInformation = 9
         }
-
-        // ----------------------------------------------------------------
+       
         // Structures
-        // ----------------------------------------------------------------
-
         [StructLayout(LayoutKind.Sequential)]
         public struct STARTUPINFO
         {
@@ -186,10 +171,7 @@ namespace RavenAntivirusResearch.Native
             }
         }
 
-        // ----------------------------------------------------------------
         // kernel32.dll — Job objects
-        // ----------------------------------------------------------------
-
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName);
 
@@ -211,15 +193,7 @@ namespace RavenAntivirusResearch.Native
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern uint ResumeThread(IntPtr hThread);
 
-        // ----------------------------------------------------------------
         // kernel32.dll — Process attribute lists
-        //
-        // FIX: The first call to InitializeProcThreadAttributeList with
-        //      lpAttributeList=NULL always returns FALSE with
-        //      GetLastError()==ERROR_INSUFFICIENT_BUFFER (122).
-        //      Callers MUST ignore that specific error on the first call.
-        // ----------------------------------------------------------------
-
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool InitializeProcThreadAttributeList(
@@ -242,10 +216,7 @@ namespace RavenAntivirusResearch.Native
         [DllImport("kernel32.dll")]
         public static extern void DeleteProcThreadAttributeList(IntPtr lpAttributeList);
 
-        // ----------------------------------------------------------------
         // kernel32.dll — Memory / process
-        // ----------------------------------------------------------------
-
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr VirtualAllocEx(
             IntPtr hProcess, IntPtr lpAddress,
@@ -279,10 +250,7 @@ namespace RavenAntivirusResearch.Native
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
 
-        // ----------------------------------------------------------------
         // advapi32.dll — Tokens / process-as-user
-        // ----------------------------------------------------------------
-
         [DllImport("advapi32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool OpenProcessToken(
@@ -328,10 +296,7 @@ namespace RavenAntivirusResearch.Native
             ref STARTUPINFOEX lpStartupInfo,
             out PROCESS_INFORMATION lpProcessInformation);
 
-        // ----------------------------------------------------------------
         // ntdll.dll
-        // ----------------------------------------------------------------
-
         [DllImport("ntdll.dll")]
         public static extern int NtQueryInformationProcess(
             IntPtr processHandle, int processInformationClass,
