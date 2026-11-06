@@ -13,15 +13,6 @@ using System.Text;
 
 namespace RavenAntivirusResearch.Core
 {
-    /// <summary>
-    /// Steganography implementation supporting PNG (LSB in RGB), WAV (LSB in data bytes),
-    /// and JPEG (appended wrapper after EOI).
-    /// 
-    /// Cryptographic scheme:
-    ///   - Master key → HKDF-SHA256 → (AES-256-GCM key, permutation PRNG seed)
-    ///   - AES-256-GCM provides authenticated encryption (no separate HMAC needed)
-    ///   - Permutation is a streaming keyed PRNG (Fisher-Yates via SplitMix64) — O(1) memory
-    /// </summary>
     public static class Steganography
     {
         // Constants
@@ -218,19 +209,6 @@ namespace RavenAntivirusResearch.Core
 
         // Streaming Permutation (O(1) memory — SplitMix64)
 
-        /// <summary>
-        /// ACTUAL IMPLEMENTATION: Since I need the same sequence for embed
-        /// and extract, and K can be up to 10M bits, we use the following:
-        /// Generate positions via SplitMix64(seed) in sequence, mapping each
-        /// to a valid index in [0, n). For the first K values, we use a
-        /// "partial shuffle" — each position is unique by construction when
-        /// I track used slots in a compact bitset (only for K <= n/2).
-        /// 
-        /// For simplicity and correctness, we use the approach of generating
-        /// the full permutation on-the-fly via repeated SplitMix64 calls,
-        /// yielding one position per call, and the caller only consumes the
-        /// first K. This requires O(K) time but O(1) extra memory per call.
-        /// </summary>
         private static ulong NextSplitMix64(ref ulong state)
         {
             state += 0x9E3779B97F4A7C15UL;
@@ -240,10 +218,6 @@ namespace RavenAntivirusResearch.Core
             return z ^ (z >> 31);
         }
 
-        // PRACTICAL SOLUTION: For N <= 10M, the int[] is 40MB max. That's
-        // acceptable. For larger N, I'd need a different scheme. Given the
-        // MaxEmbeddingBits = 10M cap, the array is bounded at 40MB.
-        // I'll keep the array approach but add a guard.
         private static int[] BuildPermutation(int n, ulong seed)
         {
             if (n <= 0) return Array.Empty<int>();
