@@ -26,7 +26,7 @@ namespace RavenAntivirusResearch.Utils
 
     public class Logger : ILogger, IDisposable
     {
-        // FIX: Not readonly because RotateLog reassigns it.
+        // Not readonly because RotateLog reassigns it.
         private StreamWriter _writer;
         private readonly BlockingCollection<string> _queue = new BlockingCollection<string>(4096);
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
@@ -57,7 +57,7 @@ namespace RavenAntivirusResearch.Utils
                     _minimumLevel = LogLevel.Info;
             }
 
-            // FIX: Open with FileShare.ReadWrite so external readers (e.g. log viewer) don't conflict.
+            // Open with FileShare.ReadWrite so external readers (e.g. log viewer) don't conflict.
             FileStream fs = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
             _writer = new StreamWriter(fs) { AutoFlush = false };
 
@@ -87,8 +87,8 @@ namespace RavenAntivirusResearch.Utils
             }
         }
 
-        // FIX: Catch OperationCanceledException explicitly so shutdown does not silently
-        //      crash the worker task (this was causing the QuickWatch exception in pic1).
+        // Catch OperationCanceledException explicitly so shutdown does not silently
+        // crash the worker task (this was causing the QuickWatch exception in pic1).
         private void ProcessQueue()
         {
             try
@@ -137,7 +137,7 @@ namespace RavenAntivirusResearch.Utils
                     File.Delete(backup);
                 File.Move(_filePath, backup);
 
-                // FIX: Reopen with FileShare.ReadWrite consistent with the constructor.
+                // Reopen with FileShare.ReadWrite consistent with the constructor.
                 FileStream fs = new FileStream(_filePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
                 _writer = new StreamWriter(fs) { AutoFlush = false };
             }
