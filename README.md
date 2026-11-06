@@ -46,23 +46,23 @@ PEB Update: WriteImageBaseToPEB updates the PEB’s ImageBaseAddress to point to
 ResumeThread(pi.hThread)
 The suspended thread is resumed. The process now executes the injected payload instead of its original code, often appearing legitimate to basic monitoring tools.
 
-Feature	Detail:
+# Feature	Detail:
 Supported Scenarios	32-bit → 32-bit, 64-bit → 64-bit, 64-bit host → 32-bit WOW64 target.
 Blocked Scenario	32-bit host → 64-bit target (architecture mismatch).
 Base Address Matching	Requires the payload’s ImageBase to match the target’s original ImageBase to unmap successfully. If they differ, the injection may fail or require complex relocation.
 Anti-Debugging	No anti-debugging checks; legitimate debuggers can detect the suspension.
 
-Modern EDR Detection	High risk. NtUnmapViewOfSection, VirtualAllocEx on suspended processes, and PEB manipulation are well-known indicators of compromise (IOCs).
+# Modern EDR Detection:	High risk. NtUnmapViewOfSection, VirtualAllocEx on suspended processes, and PEB manipulation are well-known indicators of compromise (IOCs).
 
 Legitimate vs. Malicious Use:
 
 Debugging/Reverse Engineering: Analyzing a process without its original code interfering.	Malware Persistence: Injecting into trusted processes (e.g., svchost.exe) to hide.
 
-Sandboxing/Virtualization: Instrumenting processes for security research.	Bypassing Whitelisting: Running unauthorized code within a whitelisted process.
+# Sandboxing/Virtualization: Instrumenting processes for security research.	Bypassing Whitelisting: Running unauthorized code within a whitelisted process.
 
 Security Research: Testing detection capabilities in a controlled lab.	Privilege Escalation: Injecting into high-privilege processes to gain access.
 
-Detection & Mitigation:
+# Detection & Mitigation:
 Modern security solutions detect this technique by:
 
 Monitoring NtUnmapViewOfSection: This call is rare in legitimate software and highly suspicious in a security context.
@@ -79,11 +79,12 @@ This code is a sophisticated but dangerous tool. While it demonstrates deep know
 Do not run it on any system you do not fully control.
 Use it in a VM with network isolation.
 Focus on detection strategies rather than implementation.
-  Technical Deep Dive
+
+# Technical Deep Dive
 1. Core Architecture: "Secure Steganography"
 The Steganography class doesn't just hide data; it wraps it in a cryptographic envelope before embedding.
 
-The Data Flow:
+# The Data Flow:
 
 Input: Plain payload + Key.
 Encryption: AES-CBC with a random IV.
