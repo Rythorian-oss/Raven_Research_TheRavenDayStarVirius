@@ -16,8 +16,6 @@ namespace RavenAntivirusResearch
         private readonly ILogger _logger;
         private readonly SandboxEngine _sandboxEngine;
         private EtwMonitor? _etwMonitor;
-
-        // FIX: Store the active job handle so Stop can actually kill the process.
         private SafeJobHandle? _activeJobHandle;
         private int _activePid;
         private bool _isRunning;
