@@ -3,9 +3,6 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using RavenAntivirusResearch.Native;
 
-// FIX: IJobObjectUtility interface removed from this file.
-// It now lives exclusively in IJobObjectUtility.cs.
-// This file contains only the JobObjectManager class.
 
 namespace RavenAntivirusResearch.Core
 {
